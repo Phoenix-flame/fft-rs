@@ -153,7 +153,7 @@ def _shape_axes(x, s, axes):
 def _nd(x, s, axes, norm, workers, plan, kind):
     if plan is not None:
         raise NotImplementedError("precomputed plans are not supported")
-    _normalization(norm)
+    norm = _normalization(norm)
     workers = _worker_count(workers)
     x = np.asarray(x)
     lengths, axes = _shape_axes(x, s, axes)
@@ -164,21 +164,32 @@ def _nd(x, s, axes, norm, workers, plan, kind):
     x = _array(x, complex_output=kind != "rfft", real_input=kind == "rfft")
     if kind == "irfft" and s is None:
         lengths = lengths[:-1] + (2 * (x.shape[axes[-1]] - 1),)
-    pairs = list(zip(axes, lengths))
-    if kind == "rfft":
-        a, n = pairs.pop()
-        x = rfft(x, n, a, norm, workers=workers)
-        transform = fft
-    elif kind == "irfft":
-        a, n = pairs.pop()
-        for axis, length in pairs:
-            x = ifft(x, length, axis, norm, workers=workers)
-        return irfft(x, n, a, norm, workers=workers)
+    if any(n < 1 for n in lengths):
+        raise ValueError("invalid number of data points specified")
+    input_shape = list(x.shape)
+    for axis, length in zip(axes, lengths):
+        input_shape[axis] = length
+    if kind == "irfft":
+        input_shape[axes[-1]] = lengths[-1] // 2 + 1
+    if tuple(input_shape) != x.shape:
+        resized = np.zeros(input_shape, dtype=x.dtype)
+        slices = tuple(slice(0, min(old, new)) for old, new in zip(x.shape, input_shape))
+        resized[slices] = x[slices]
+        x = resized
+    data = np.ascontiguousarray(x).reshape(-1)
+    precision = "f32" if x.dtype in (np.dtype("float32"), np.dtype("complex64")) else "f64"
+    if kind in ("fft", "ifft"):
+        result, shape, order = getattr(_native, "c2c_nd_" + precision)(
+            data, x.shape, axes, kind == "ifft", norm, workers)
+    elif kind == "rfft":
+        result, shape, order = getattr(_native, "r2c_nd_" + precision)(
+            data, x.shape, axes, norm, workers)
     else:
-        transform = fft if kind == "fft" else ifft
-    for a, n in reversed(pairs):
-        x = transform(x, n, a, norm, workers=workers)
-    return x
+        result, shape, order = getattr(_native, "c2r_nd_" + precision)(
+            data, x.shape, axes, lengths[-1], norm, workers)
+    result = result.reshape(shape)
+    inverse_order = tuple(order.index(axis) for axis in range(x.ndim))
+    return result.transpose(inverse_order)
 
 
 def fftn(x, s=None, axes=None, norm=None, overwrite_x=False, workers=None, *, plan=None):

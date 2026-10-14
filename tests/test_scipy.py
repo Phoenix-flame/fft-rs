@@ -152,3 +152,27 @@ def test_roundtrip_and_parseval():
 def test_no_axes_preserves_dtype(function, dtype):
     x = np.arange(6).astype(dtype).reshape(2, 3)
     check(getattr(ft, function)(x, axes=()), getattr(sp, function)(x, axes=()))
+
+
+@pytest.mark.parametrize("function", ["fftn", "ifftn", "rfftn", "irfftn"])
+@pytest.mark.parametrize("axes", [(0, 1, 2), (2, 0), (1, 0, 2)])
+@pytest.mark.parametrize("workers", [1, 4])
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_nd_native_strided_parallel(function, axes, workers, dtype):
+    x = np.random.default_rng(53).normal(size=(34, 36, 130)).astype(dtype)[::-1, ::2, ::-2]
+    original = x.copy()
+    check(getattr(ft, function)(x, axes=axes, workers=workers), getattr(sp, function)(x, axes=axes, workers=workers))
+    np.testing.assert_array_equal(x, original)
+
+
+@pytest.mark.parametrize("function", ["fftn", "ifftn", "rfftn", "irfftn"])
+def test_nd_empty_batch_native(function):
+    x = np.empty((0, 7, 9))
+    check(getattr(ft, function)(x, axes=(2, 1), s=(11, 5)), getattr(sp, function)(x, axes=(2, 1), s=(11, 5)))
+
+
+@pytest.mark.parametrize("function", ["fftn", "ifftn", "rfftn", "irfftn"])
+@pytest.mark.parametrize("shape", [(1, 1, 7), (7, 1, 1), (1, 7, 1), (2, 1, 7)])
+def test_nd_singleton_dimensions(function, shape):
+    x = np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
+    check(getattr(ft, function)(x, s=shape, norm="ortho"), getattr(sp, function)(x, s=shape, norm="ortho"))

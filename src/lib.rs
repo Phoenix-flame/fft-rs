@@ -53,6 +53,105 @@ pub struct Engine<T: FftNum> {
     real: Mutex<RealFftPlanner<T>>,
 }
 
+/// Owned row-major workspace. `order[i]` identifies the original axis now at i.
+/// A consumer can restore logical axis order using a view, without copying data.
+pub struct Array<T> {
+    pub data: Vec<T>,
+    pub shape: Vec<usize>,
+    pub order: Vec<usize>,
+}
+
+const TRANSPOSE_COLUMNS: usize = 8;
+
+fn transpose_block<T: Copy>(
+    input: &[T],
+    output: &mut [T],
+    block_index: usize,
+    n: usize,
+    inner: usize,
+) {
+    let first = block_index * TRANSPOSE_COLUMNS;
+    let columns = output.len() / n;
+    let mut offsets = [0; TRANSPOSE_COLUMNS];
+    for (column, offset) in offsets[..columns].iter_mut().enumerate() {
+        let lane = first + column;
+        *offset = (lane / inner) * n * inner + lane % inner;
+    }
+    for row in 0..n {
+        for column in 0..columns {
+            output[column * n + row] = input[offsets[column] + row * inner];
+        }
+    }
+}
+
+impl<T: Copy + Send + Sync> Array<T> {
+    fn new(data: Vec<T>, shape: &[usize], axes: &[usize], workers: usize) -> Result<Self, String> {
+        let size = shape
+            .iter()
+            .try_fold(1usize, |size, &n| size.checked_mul(n))
+            .ok_or("array shape is too large")?;
+        if size != data.len() || workers == 0 {
+            return Err("array shape or worker count is invalid".into());
+        }
+        let mut seen = vec![false; shape.len()];
+        for &axis in axes {
+            if axis >= shape.len() || seen[axis] || shape[axis] == 0 {
+                return Err("FFT axes must be unique, in bounds, and nonempty".into());
+            }
+            seen[axis] = true;
+        }
+        Ok(Self {
+            data,
+            shape: shape.to_vec(),
+            order: (0..shape.len()).collect(),
+        })
+    }
+
+    // Transpose [outer, axis, inner] to [outer, inner, axis]. Small column blocks
+    // keep adjacent source reads together, avoiding a full Python axis copy.
+    fn move_last(&mut self, original_axis: usize, workers: usize, zero: T) -> Result<(), String> {
+        let axis = self
+            .order
+            .iter()
+            .position(|&a| a == original_axis)
+            .ok_or("invalid axis")?;
+        if axis + 1 == self.shape.len() {
+            return Ok(());
+        }
+        let n = self.shape[axis];
+        let inner = self.shape[axis + 1..].iter().product::<usize>();
+        if !self.data.is_empty() && inner != 1 && n != 1 {
+            let mut output = vec![zero; self.data.len()];
+            let block_size = n * TRANSPOSE_COLUMNS.min(self.data.len() / n);
+            let transpose = |block_index: usize, block: &mut [T]| {
+                transpose_block(&self.data, block, block_index, n, inner);
+            };
+            if workers > 1 && self.data.len() >= 32768 {
+                pool(workers)?.install(|| {
+                    output
+                        .par_chunks_mut(block_size)
+                        .enumerate()
+                        .for_each(|(index, block)| transpose(index, block));
+                });
+            } else {
+                for (index, block) in output.chunks_mut(block_size).enumerate() {
+                    transpose(index, block);
+                }
+            }
+            self.data = output;
+        }
+        self.rotate_metadata(axis);
+        Ok(())
+    }
+
+    fn rotate_metadata(&mut self, axis: usize) {
+        let n = self.shape.remove(axis);
+        self.shape.push(n);
+        let axis = self.order.remove(axis);
+        self.order.push(axis);
+    }
+}
+
 impl<T: FftNum> Default for Engine<T> {
     fn default() -> Self {
         Self {
@@ -80,6 +179,153 @@ impl<T: FftNum> Engine<T> {
     pub fn clear_cache(&self) {
         *self.complex.lock().unwrap() = FftPlanner::new();
         *self.real.lock().unwrap() = RealFftPlanner::new();
+    }
+
+    fn complex_axes(
+        &self,
+        array: &mut Array<Complex<T>>,
+        axes: &[usize],
+        inverse: bool,
+        norm: Norm,
+        workers: usize,
+    ) -> Result<(), String> {
+        for &original_axis in axes {
+            let axis = array
+                .order
+                .iter()
+                .position(|&a| a == original_axis)
+                .ok_or("invalid FFT axis")?;
+            let n = array.shape[axis];
+            if axis + 1 == array.shape.len() {
+                self.c2c(&mut array.data, n, inverse, norm, workers)?;
+                continue;
+            }
+            let inner = array.shape[axis + 1..].iter().product::<usize>();
+            if inner == 1 || n == 1 {
+                self.c2c(&mut array.data, n, inverse, norm, workers)?;
+                array.rotate_metadata(axis);
+                continue;
+            }
+            if !array.data.is_empty() {
+                let direction = if inverse {
+                    FftDirection::Inverse
+                } else {
+                    FftDirection::Forward
+                };
+                let fft = self.complex.lock().unwrap().plan_fft(n, direction);
+                let scale = norm.scale::<T>(n, inverse);
+                let zero = Complex::new(T::zero(), T::zero());
+                let mut output = vec![zero; array.data.len()];
+                let block_size = n * TRANSPOSE_COLUMNS.min(array.data.len() / n);
+                let workspace = || {
+                    (
+                        vec![zero; block_size],
+                        vec![zero; fft.get_outofplace_scratch_len()],
+                    )
+                };
+                let process = |buffers: &mut (Vec<Complex<T>>, Vec<Complex<T>>),
+                               index: usize,
+                               block: &mut [Complex<T>]| {
+                    let (input, scratch) = buffers;
+                    let input = &mut input[..block.len()];
+                    transpose_block(&array.data, input, index, n, inner);
+                    // Gather into a small reusable workspace and transform directly
+                    // into the final axis layout, eliminating an intermediate write.
+                    fft.process_outofplace_with_scratch(input, block, scratch);
+                    if scale != T::one() {
+                        block.iter_mut().for_each(|v| *v = *v * scale);
+                    }
+                };
+                if workers > 1 && array.data.len() >= 32768 {
+                    let min_blocks = (array.data.len() / block_size).div_ceil(workers).max(1);
+                    pool(workers)?.install(|| {
+                        output
+                            .par_chunks_mut(block_size)
+                            .enumerate()
+                            .with_min_len(min_blocks)
+                            .for_each_init(workspace, |buffers, (index, block)| {
+                                process(buffers, index, block)
+                            });
+                    });
+                } else {
+                    let mut buffers = workspace();
+                    for (index, block) in output.chunks_mut(block_size).enumerate() {
+                        process(&mut buffers, index, block);
+                    }
+                }
+                array.data = output;
+            }
+            array.rotate_metadata(axis);
+        }
+        Ok(())
+    }
+
+    /// N-D complex FFT with ownership retained across all axis passes.
+    /// Shape changes (cropping/padding) are applied by the caller before entry.
+    pub fn c2c_nd(
+        &self,
+        data: Vec<Complex<T>>,
+        shape: &[usize],
+        axes: &[usize],
+        inverse: bool,
+        norm: Norm,
+        workers: usize,
+    ) -> Result<Array<Complex<T>>, String> {
+        let mut array = Array::new(data, shape, axes, workers)?;
+        let sequence: Vec<_> = axes.iter().rev().copied().collect();
+        self.complex_axes(&mut array, &sequence, inverse, norm, workers)?;
+        Ok(array)
+    }
+
+    /// N-D real forward FFT. The last requested axis is reduced to n/2+1 bins.
+    pub fn r2c_nd(
+        &self,
+        data: Vec<T>,
+        shape: &[usize],
+        axes: &[usize],
+        norm: Norm,
+        workers: usize,
+    ) -> Result<Array<Complex<T>>, String> {
+        let &real_axis = axes.last().ok_or("a real FFT axis is required")?;
+        let mut input = Array::new(data, shape, axes, workers)?;
+        input.move_last(real_axis, workers, T::zero())?;
+        let n = *input.shape.last().unwrap();
+        let data = self.r2c(&mut input.data, n, norm, workers)?;
+        *input.shape.last_mut().unwrap() = n / 2 + 1;
+        let mut output = Array {
+            data,
+            shape: input.shape,
+            order: input.order,
+        };
+        let sequence: Vec<_> = axes[..axes.len() - 1].iter().rev().copied().collect();
+        self.complex_axes(&mut output, &sequence, false, norm, workers)?;
+        Ok(output)
+    }
+
+    /// N-D real inverse FFT. n is the full output length of the last FFT axis.
+    pub fn c2r_nd(
+        &self,
+        data: Vec<Complex<T>>,
+        shape: &[usize],
+        axes: &[usize],
+        n: usize,
+        norm: Norm,
+        workers: usize,
+    ) -> Result<Array<T>, String> {
+        let &real_axis = axes.last().ok_or("a real FFT axis is required")?;
+        let mut input = Array::new(data, shape, axes, workers)?;
+        if n == 0 || shape[real_axis] != n / 2 + 1 {
+            return Err("invalid inverse real FFT length".into());
+        }
+        self.complex_axes(&mut input, &axes[..axes.len() - 1], true, norm, workers)?;
+        input.move_last(real_axis, workers, Complex::new(T::zero(), T::zero()))?;
+        let data = self.c2r(&mut input.data, n, norm, workers)?;
+        *input.shape.last_mut().unwrap() = n;
+        Ok(Array {
+            data,
+            shape: input.shape,
+            order: input.order,
+        })
     }
 
     /// In-place FFT of adjacent rows of length n. No per-row allocation.

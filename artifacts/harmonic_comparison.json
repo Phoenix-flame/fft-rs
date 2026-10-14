@@ -46,9 +46,9 @@
       "max_amplitude_scaled_complex_error": 1.625385865081806e-16,
       "max_full_fft_error": 5.752149554916067e-12,
       "max_roundtrip_error": 1.1102230246251565e-15,
-      "rust_rfft_seconds": 0.00018144347619194638,
-      "scipy_rfft_seconds": 0.0003262041417887059,
-      "speedup": 1.7978278890756003,
+      "rust_rfft_seconds": 0.00016448657265560835,
+      "scipy_rfft_seconds": 0.0003111508865152355,
+      "speedup": 1.8916491570816767,
       "peaks": [
         {
           "harmonic": 1,
@@ -101,9 +101,9 @@
       "max_amplitude_scaled_complex_error": 7.804971947796654e-08,
       "max_full_fft_error": 0.0009784679896167846,
       "max_roundtrip_error": 4.76837158203125e-07,
-      "rust_rfft_seconds": 9.516843051256975e-05,
-      "scipy_rfft_seconds": 0.0002903045067648998,
-      "speedup": 3.050428647413248,
+      "rust_rfft_seconds": 9.459297078066882e-05,
+      "scipy_rfft_seconds": 0.00027489477107962325,
+      "speedup": 2.906080322997967,
       "peaks": [
         {
           "harmonic": 1,

@@ -129,7 +129,7 @@ def plot_comparison(t, signal, window, frequencies, data, metrics, fundamental, 
         ax_spectrum.axvline(frequency, color="#748393", alpha=0.35, lw=0.8, ls=":")
         ax_spectrum.text(frequency, 1.5, f"{harmonic}f₀\n{frequency:g} Hz", ha="center", va="bottom", fontsize=9)
     ax_spectrum.set(title="The spectra overlap at every harmonic", xlabel="Frequency (Hz)",
-                    ylabel="One-sided amplitude (dB re 1)", xlim=(0, fundamental * 8), ylim=(-140, 11))
+                    ylabel="One-sided amplitude (dB re 1)", xlim=(0, fundamental * 8), ylim=(-140, 20))
     ax_spectrum.legend(loc="lower left", fontsize=10, frameon=False)
 
     for dtype, color in [("float32", colors["single"]), ("float64", colors["double"])]:
@@ -137,9 +137,10 @@ def plot_comparison(t, signal, window, frequencies, data, metrics, fundamental, 
                           lw=0.8, alpha=0.9, label=f"{dtype}: relative L2 error {metrics[dtype]['relative_l2_fft_error']:.2e}")
     ax_error.set(title="Numerical difference · all FFT bins", xlabel="Frequency (Hz)",
                  ylabel="Amplitude-scaled |Rust − SciPy|", xlim=(0, frequencies[-1]))
-    ax_error.legend(loc="upper right", fontsize=10, frameon=False)
+    ax_error.legend(loc="upper right", fontsize=10, frameon=True, facecolor="white", framealpha=0.95)
     ax_error.text(0.015, 0.035, "DC/Nyquist weighted once; exact zero differences drawn at 10⁻²⁰.",
-                  transform=ax_error.transAxes, fontsize=9, color="#546575")
+                  transform=ax_error.transAxes, fontsize=9, color="#546575",
+                  bbox=dict(facecolor="white", edgecolor="none", alpha=0.95))
     fig.suptitle("Hamming-windowed harmonic signal: Rust vs SciPy\n"
                  f"f₀ = {fundamental:g} Hz  |  N = {len(t):,}  |  Δf = {frequencies[1]:g} Hz  |  double-precision spectrum",
                  fontsize=17, fontweight="bold")
