@@ -29,7 +29,8 @@ macro_rules! bindings {
             normalization: &str,
             workers: usize,
         ) -> PyResult<Bound<'py, PyArray1<Complex<$t>>>> {
-            let mut data = x.as_slice()?.to_vec();
+            let mut data =
+                crate::copy_input(x.as_slice()?, workers).map_err(PyValueError::new_err)?;
             let normalization = norm(normalization)?;
             py.detach(|| {
                 $engine.get_or_init(Engine::default).c2c(
@@ -51,15 +52,15 @@ macro_rules! bindings {
             normalization: &str,
             workers: usize,
         ) -> PyResult<Bound<'py, PyArray1<Complex<$t>>>> {
-            let mut data = x.as_slice()?.to_vec();
+            let engine = $engine.get_or_init(Engine::default);
+            let mut data = engine
+                .copy_real_input(x.as_slice()?, workers)
+                .map_err(PyValueError::new_err)?;
             let normalization = norm(normalization)?;
             let output = py
-                .detach(|| {
-                    $engine
-                        .get_or_init(Engine::default)
-                        .r2c(&mut data, n, normalization, workers)
-                })
+                .detach(|| engine.r2c(&mut data, n, normalization, workers))
                 .map_err(PyValueError::new_err)?;
+            engine.recycle_real_input(data);
             Ok(output.into_pyarray(py))
         }
         #[pyfunction]
@@ -70,7 +71,8 @@ macro_rules! bindings {
             normalization: &str,
             workers: usize,
         ) -> PyResult<Bound<'py, PyArray1<$t>>> {
-            let mut data = x.as_slice()?.to_vec();
+            let mut data =
+                crate::copy_input(x.as_slice()?, workers).map_err(PyValueError::new_err)?;
             let normalization = norm(normalization)?;
             let output = py
                 .detach(|| {
@@ -91,7 +93,7 @@ macro_rules! bindings {
             normalization: &str,
             workers: usize,
         ) -> PyResult<(Bound<'py, PyArray1<Complex<$t>>>, Vec<usize>, Vec<usize>)> {
-            let data = x.as_slice()?.to_vec();
+            let data = crate::copy_input(x.as_slice()?, workers).map_err(PyValueError::new_err)?;
             let normalization = norm(normalization)?;
             let output = py
                 .detach(|| {
@@ -116,7 +118,10 @@ macro_rules! bindings {
             normalization: &str,
             workers: usize,
         ) -> PyResult<(Bound<'py, PyArray1<Complex<$t>>>, Vec<usize>, Vec<usize>)> {
-            let data = x.as_slice()?.to_vec();
+            let data = $engine
+                .get_or_init(Engine::default)
+                .copy_real_input(x.as_slice()?, workers)
+                .map_err(PyValueError::new_err)?;
             let normalization = norm(normalization)?;
             let output = py
                 .detach(|| {
@@ -141,7 +146,7 @@ macro_rules! bindings {
             normalization: &str,
             workers: usize,
         ) -> PyResult<(Bound<'py, PyArray1<$t>>, Vec<usize>, Vec<usize>)> {
-            let data = x.as_slice()?.to_vec();
+            let data = crate::copy_input(x.as_slice()?, workers).map_err(PyValueError::new_err)?;
             let normalization = norm(normalization)?;
             let output = py
                 .detach(|| {

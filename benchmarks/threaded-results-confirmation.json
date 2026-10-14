@@ -1,0 +1,234 @@
+{
+  "python": "3.12.14",
+  "scipy": "1.15.3",
+  "numpy": "2.3.5",
+  "fftlib": "0.1.0",
+  "baseline_commit": "77ccbde",
+  "timing": "11 interleaved repeats, median, warmed plans, end-to-end calls",
+  "records": [
+    {
+      "transform": "fft",
+      "shape": [
+        65536
+      ],
+      "dtype": "complex64",
+      "workers": 4,
+      "before_seconds": 0.0003438421000282688,
+      "after_seconds": 0.00034572637496239623,
+      "scipy_seconds": 0.0006058861249584879,
+      "improvement": 0.9945498085463327,
+      "scipy_speedup": 1.7525018883051333
+    },
+    {
+      "transform": "rfft",
+      "shape": [
+        65536
+      ],
+      "dtype": "float32",
+      "workers": 4,
+      "before_seconds": 9.72983020801621e-05,
+      "after_seconds": 9.392082290560211e-05,
+      "scipy_seconds": 0.00027705232290979137,
+      "improvement": 1.0359609197414574,
+      "scipy_speedup": 2.9498498239123285
+    },
+    {
+      "transform": "fft",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "complex64",
+      "workers": 4,
+      "before_seconds": 5.94421792485727e-05,
+      "after_seconds": 6.627098113278648e-05,
+      "scipy_seconds": 5.0657537734500604e-05,
+      "improvement": 0.8969563786820814,
+      "scipy_speedup": 0.76439999632718
+    },
+    {
+      "transform": "rfft",
+      "shape": [
+        256,
+        4096
+      ],
+      "dtype": "float32",
+      "workers": 4,
+      "before_seconds": 0.0010535683999478352,
+      "after_seconds": 0.0005818151999847032,
+      "scipy_seconds": 0.0008568739998736419,
+      "improvement": 1.8108299679615367,
+      "scipy_speedup": 1.4727597352151858
+    },
+    {
+      "transform": "fft2",
+      "shape": [
+        512,
+        512
+      ],
+      "dtype": "complex64",
+      "workers": 4,
+      "before_seconds": 0.00045406788886895,
+      "after_seconds": 0.00033348744444891863,
+      "scipy_seconds": 0.0006608029722075218,
+      "improvement": 1.3615741654660738,
+      "scipy_speedup": 1.9814928064217996
+    },
+    {
+      "transform": "rfft2",
+      "shape": [
+        512,
+        512
+      ],
+      "dtype": "float32",
+      "workers": 4,
+      "before_seconds": 0.00030193021537762926,
+      "after_seconds": 0.00024039832309286934,
+      "scipy_seconds": 0.0002008833846048219,
+      "improvement": 1.2559580761342883,
+      "scipy_speedup": 0.8356272290935147
+    },
+    {
+      "transform": "fftn",
+      "shape": [
+        64,
+        64,
+        64
+      ],
+      "dtype": "complex64",
+      "workers": 4,
+      "before_seconds": 0.000526825763125472,
+      "after_seconds": 0.00027829552633001616,
+      "scipy_seconds": 0.00044067802632765193,
+      "improvement": 1.8930443118253246,
+      "scipy_speedup": 1.5834894370708454
+    },
+    {
+      "transform": "rfftn",
+      "shape": [
+        64,
+        64,
+        64
+      ],
+      "dtype": "float32",
+      "workers": 4,
+      "before_seconds": 0.0003937573898021305,
+      "after_seconds": 0.00026670271185817696,
+      "scipy_seconds": 0.0003535586610099526,
+      "improvement": 1.476390648819187,
+      "scipy_speedup": 1.325665789247627
+    },
+    {
+      "transform": "fft",
+      "shape": [
+        65536
+      ],
+      "dtype": "complex128",
+      "workers": 4,
+      "before_seconds": 0.00032538644995838695,
+      "after_seconds": 0.00032307070000570093,
+      "scipy_seconds": 0.0006410495999716659,
+      "improvement": 1.0071679355405647,
+      "scipy_speedup": 1.984239362964063
+    },
+    {
+      "transform": "rfft",
+      "shape": [
+        65536
+      ],
+      "dtype": "float64",
+      "workers": 4,
+      "before_seconds": 0.0001706481190402493,
+      "after_seconds": 0.0001986716785636201,
+      "scipy_seconds": 0.000313388309526393,
+      "improvement": 0.8589453729591514,
+      "scipy_speedup": 1.57741813927463
+    },
+    {
+      "transform": "fft",
+      "shape": [
+        64,
+        1024
+      ],
+      "dtype": "complex128",
+      "workers": 4,
+      "before_seconds": 0.00011290930435437906,
+      "after_seconds": 0.00010753391305352916,
+      "scipy_seconds": 9.945343477422442e-05,
+      "improvement": 1.0499878703211896,
+      "scipy_speedup": 0.9248564657432082
+    },
+    {
+      "transform": "rfft",
+      "shape": [
+        256,
+        4096
+      ],
+      "dtype": "float64",
+      "workers": 4,
+      "before_seconds": 0.005921175999901607,
+      "after_seconds": 0.002236766999582566,
+      "scipy_seconds": 0.001214258000497163,
+      "improvement": 2.647202860649607,
+      "scipy_speedup": 0.5428629806876499
+    },
+    {
+      "transform": "fft2",
+      "shape": [
+        512,
+        512
+      ],
+      "dtype": "complex128",
+      "workers": 4,
+      "before_seconds": 0.00103761113045355,
+      "after_seconds": 0.0008447908695297488,
+      "scipy_seconds": 0.0007096139565281034,
+      "improvement": 1.2282461469205204,
+      "scipy_speedup": 0.8399877201834681
+    },
+    {
+      "transform": "rfft2",
+      "shape": [
+        512,
+        512
+      ],
+      "dtype": "float64",
+      "workers": 4,
+      "before_seconds": 0.0005167394523856014,
+      "after_seconds": 0.0003263104762092033,
+      "scipy_seconds": 0.00032887002383913134,
+      "improvement": 1.5835821711538025,
+      "scipy_speedup": 1.007843902713951
+    },
+    {
+      "transform": "fftn",
+      "shape": [
+        64,
+        64,
+        64
+      ],
+      "dtype": "complex128",
+      "workers": 4,
+      "before_seconds": 0.001311655625045205,
+      "after_seconds": 0.0006944519999478871,
+      "scipy_seconds": 0.0011392198124440256,
+      "improvement": 1.8887635504594038,
+      "scipy_speedup": 1.6404586818520426
+    },
+    {
+      "transform": "rfftn",
+      "shape": [
+        64,
+        64,
+        64
+      ],
+      "dtype": "float64",
+      "workers": 4,
+      "before_seconds": 0.0006550062903003099,
+      "after_seconds": 0.0003177153871107411,
+      "scipy_seconds": 0.00043297622581913825,
+      "improvement": 2.0616133711899973,
+      "scipy_speedup": 1.3627801591750497
+    }
+  ]
+}

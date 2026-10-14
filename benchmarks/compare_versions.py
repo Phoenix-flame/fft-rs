@@ -28,7 +28,12 @@ def main():
     parser.add_argument("--baseline", type=Path, required=True,
                         help="snapshot of the previous fftlib package, including its native extension")
     parser.add_argument("--json", type=Path, default=Path("benchmarks/optimization-results.json"))
+    parser.add_argument("--workers", type=int, nargs="+", default=[1, 4])
+    parser.add_argument("--repeats", type=int, default=7)
+    parser.add_argument("--baseline-commit", default=None)
     args = parser.parse_args()
+    if args.repeats < 1 or any(worker < 1 for worker in args.workers):
+        parser.error("repeats and worker counts must be positive")
     previous = load_previous(args.baseline.resolve())
     rng = np.random.default_rng(62)
     cases = [("fft", (65536,)), ("rfft", (65536,)), ("fft", (64, 1024)),
@@ -36,7 +41,7 @@ def main():
              ("fftn", (64, 64, 64)), ("rfftn", (64, 64, 64))]
     rows = []
     print(f"{'case':45} {'workers':>7} {'before µs':>11} {'after µs':>11} {'improvement':>11} {'vs SciPy':>10}")
-    for workers in (1, 4):
+    for workers in args.workers:
         for dtype in (np.float32, np.float64):
             for name, shape in cases:
                 x = rng.normal(size=shape).astype(dtype)
@@ -54,7 +59,7 @@ def main():
                 timings = [[], [], []]
                 # Rotate measurement order so thermal/scheduling drift doesn't
                 # consistently favor one implementation.
-                for repetition in range(7):
+                for repetition in range(args.repeats):
                     for offset in range(3):
                         index = (repetition + offset) % 3
                         timings[index].append(timers[index].timeit(number) / number)
@@ -66,7 +71,8 @@ def main():
                 print(f"{name + ' ' + str(shape) + ' ' + str(x.dtype):45} {workers:7} {before*1e6:11.2f} {after*1e6:11.2f} {row['improvement']:10.2f}x {row['scipy_speedup']:9.2f}x", flush=True)
     args.json.write_text(json.dumps(dict(python=platform.python_version(), scipy=scipy.__version__,
                                         numpy=np.__version__, fftlib=fftlib.__version__,
-                                        timing="7 interleaved repeats, median, warmed plans, end-to-end calls",
+                                        baseline_commit=args.baseline_commit,
+                                        timing=f"{args.repeats} interleaved repeats, median, warmed plans, end-to-end calls",
                                         records=rows), indent=2) + "\n")
 
 

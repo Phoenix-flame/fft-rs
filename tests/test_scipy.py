@@ -176,3 +176,36 @@ def test_nd_empty_batch_native(function):
 def test_nd_singleton_dimensions(function, shape):
     x = np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
     check(getattr(ft, function)(x, s=shape, norm="ortho"), getattr(sp, function)(x, s=shape, norm="ortho"))
+
+
+@pytest.mark.parametrize("function", ["fft", "ifft", "rfft", "irfft"])
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("workers", [2, 4, 7])
+def test_large_threaded_copy_and_outputs(function, dtype, workers):
+    # Irregular row count exercises partial worker chunks. Input exceeds the
+    # parallel-copy threshold, including in single precision.
+    x = np.random.default_rng(49).normal(size=(137, 4096)).astype(dtype)
+    original = x.copy()
+    for norm in (None, "ortho"):
+        check(getattr(ft, function)(x, norm=norm, workers=workers),
+              getattr(sp, function)(x, norm=norm, workers=workers))
+    np.testing.assert_array_equal(x, original)
+
+
+def test_real_workspace_reuse_preserves_previous_output():
+    x = np.random.default_rng(6).normal(size=(137, 4096))
+    first = ft.rfft(x, workers=4)
+    saved = first.copy()
+    second = ft.rfft(x * 3, workers=4)
+    np.testing.assert_array_equal(first, saved)
+    check(second, sp.rfft(x * 3))
+    ft.clear_cache()
+    check(ft.rfft(x, workers=4), sp.rfft(x))
+
+
+def test_concurrent_real_workspace_reuse():
+    x = np.random.default_rng(29).normal(size=(137, 4096))
+    with ThreadPoolExecutor(4) as executor:
+        results = list(executor.map(lambda scale: ft.rfft(x * scale, workers=4), range(1, 7)))
+    for scale, result in enumerate(results, start=1):
+        check(result, sp.rfft(x * scale))

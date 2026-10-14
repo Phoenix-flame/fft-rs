@@ -41,7 +41,7 @@ def get_workers():
 
 
 def clear_cache():
-    """Release cached FFT plans; active transforms remain valid."""
+    """Release cached FFT plans and real input buffers; active transforms remain valid."""
     _native.clear_cache()
 
 

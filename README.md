@@ -126,14 +126,22 @@ FFT plans are cached per length and precision without a fixed bound. Call
 many distinct lengths. Worker pools are cached per requested positive count;
 reuse a small set of worker counts. Scratch space is reused within each batch,
 but allocated again for subsequent calls.
+Large input copies (at least 2 MiB) also use the requested worker pool, while
+holding the GIL so FFT computation only accesses owned Rust data. Threaded real
+and N-D complex transforms initialize output pages on the workers that process
+them. Python real forward transforms reuse up to two input buffers of 2–16 MiB
+per precision; this adds at most 32 MiB per precision. `clear_cache()` releases
+these buffers as well as FFT plans. Output arrays are never reused while callers
+retain them.
 
 ## Measured results
 
 Validated on an Intel Core i5-11400H with Python 3.12.14, NumPy 2.3.5, and SciPy
-1.15.3: **1,057 Python tests and two Rust tests passed**. The packaged Linux CPython
+1.15.3: **1,083 Python tests and four Rust tests passed**. The packaged Linux CPython
 3.12 wheel also passed an independent import and 2-D roundtrip check.
 
-Representative median end-to-end timings with one worker:
+Representative median end-to-end timings with one worker, recorded in commit
+`77ccbde` before the additional threaded memory optimizations:
 
 | Transform | Rust | SciPy | SciPy/Rust |
 | --- | ---: | ---: | ---: |
@@ -167,6 +175,41 @@ are measurement variation. Full results are in
 [optimization-results.json](benchmarks/optimization-results.json). A local
 baseline package snapshot is saved in `target/benchmark-baseline`; compare it
 again with `python benchmarks/compare_versions.py --baseline target/benchmark-baseline`.
+
+## Threaded memory optimizations
+
+The new input-copy, worker-side output initialization, and bounded real workspace
+reuse paths are compared with commit `77ccbde` in
+[threaded-results.json](benchmarks/threaded-results.json). The benchmark interleaves
+the previous library, current library, and SciPy with warmed plans. It includes
+one-worker controls plus four and eight workers. A repeat with eleven timing
+samples is saved in [threaded-results-confirmation.json](benchmarks/threaded-results-confirmation.json).
+
+Representative measurements from the final build, relative to the committed
+baseline:
+
+| Workload | Workers | Before | After | Improvement |
+| --- | ---: | ---: | ---: | ---: |
+| `rfft`, 256×4096 float32 | 4 | 1.35 ms | 0.90 ms | 1.50× |
+| `fft2`, 512×512 complex64 | 4 | 0.50 ms | 0.34 ms | 1.48× |
+| `fftn`, 64×64×64 complex128 | 4 | 1.63 ms | 0.73 ms | 2.25× |
+| `fftn`, 64×64×64 complex128 | 8 | 1.23 ms | 0.53 ms | 2.31× |
+| `rfftn`, 64×64×64 float64 | 8 | 0.69 ms | 0.33 ms | 2.11× |
+
+SciPy still leads on some workloads, particularly large float64 real batches;
+these changes do not establish a universal speedup. The timings include input
+copying, output allocation, and cache reuse; the first call can take longer.
+
+```sh
+python benchmarks/compare_versions.py --baseline target/threaded-baseline \
+  --baseline-commit 77ccbde --workers 1 4 8 --json benchmarks/threaded-results.json
+```
+
+`target/threaded-baseline` contains the saved package snapshot on this machine.
+For a fresh checkout, create that snapshot from the baseline commit before
+building the current extension. Cache tests cover full initialization of partial
+worker chunks, bounded retention, clearing, concurrent calls, and preservation
+of previously returned output arrays.
 
 ## Hamming-windowed harmonic comparison
 
