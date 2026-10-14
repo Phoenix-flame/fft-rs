@@ -1,0 +1,24 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "fftlib"
+version = "0.1.0"
+description = "Rust FFTs with a NumPy/SciPy-style API"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.23"]
+readme = "README.md"
+license = "MIT"
+
+[project.optional-dependencies]
+test = ["scipy>=1.10", "pytest>=7"]
+plot = ["scipy>=1.10", "matplotlib>=3.7"]
+
+[tool.maturin]
+features = ["python"]
+python-source = "python"
+module-name = "fftlib._native"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

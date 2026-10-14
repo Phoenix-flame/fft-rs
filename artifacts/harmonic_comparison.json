@@ -1,0 +1,152 @@
+{
+  "samples": 65536,
+  "sample_rate_hz": 8192,
+  "duration_seconds": 8.0,
+  "frequency_spacing_hz": 0.125,
+  "fundamental_hz": 123.4,
+  "harmonic_numbers": [
+    1,
+    2,
+    3,
+    5,
+    7
+  ],
+  "amplitudes": [
+    1.0,
+    0.5,
+    0.25,
+    0.15,
+    0.08
+  ],
+  "phases_radians": [
+    0.0,
+    0.4,
+    -0.7,
+    1.1,
+    -0.3
+  ],
+  "window": "periodic Hamming (sym=False)",
+  "coherent_gain": 0.54,
+  "amplitude_normalization": "2*abs(rfft)/sum(window); DC and Nyquist weighted once",
+  "note": "Off-bin harmonics exhibit spectral leakage and scalloping; nearest-bin amplitudes can differ from input amplitudes.",
+  "versions": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "scipy": "1.15.3",
+    "matplotlib": "3.11.2",
+    "fftlib": "0.1.0"
+  },
+  "timing": "Median of 7 warmed repetitions; end-to-end rfft call, one worker, no windowing or plotting.",
+  "results": {
+    "float64": {
+      "dtype": "float64",
+      "spectrum_dtype": "complex128",
+      "max_absolute_fft_error": 2.8760747774580336e-12,
+      "relative_l2_fft_error": 4.502184165585456e-16,
+      "max_amplitude_scaled_complex_error": 1.625385865081806e-16,
+      "max_full_fft_error": 5.752149554916067e-12,
+      "max_roundtrip_error": 1.1102230246251565e-15,
+      "rust_rfft_seconds": 0.00018144347619194638,
+      "scipy_rfft_seconds": 0.0003262041417887059,
+      "speedup": 1.7978278890756003,
+      "peaks": [
+        {
+          "harmonic": 1,
+          "input_frequency_hz": 123.4,
+          "peak_bin_hz": 123.375,
+          "input_amplitude": 1.0,
+          "rust_peak_amplitude": 0.9687102306695977,
+          "scipy_peak_amplitude": 0.9687102306695979
+        },
+        {
+          "harmonic": 2,
+          "input_frequency_hz": 246.8,
+          "peak_bin_hz": 246.75,
+          "input_amplitude": 0.5,
+          "rust_peak_amplitude": 0.4398214474860626,
+          "scipy_peak_amplitude": 0.43982144748606267
+        },
+        {
+          "harmonic": 3,
+          "input_frequency_hz": 370.20000000000005,
+          "peak_bin_hz": 370.25,
+          "input_amplitude": 0.25,
+          "rust_peak_amplitude": 0.21993305748252376,
+          "scipy_peak_amplitude": 0.21993305748252376
+        },
+        {
+          "harmonic": 5,
+          "input_frequency_hz": 617.0,
+          "peak_bin_hz": 617.0,
+          "input_amplitude": 0.15,
+          "rust_peak_amplitude": 0.14998592128767882,
+          "scipy_peak_amplitude": 0.14998592128767882
+        },
+        {
+          "harmonic": 7,
+          "input_frequency_hz": 863.8000000000001,
+          "peak_bin_hz": 863.75,
+          "input_amplitude": 0.08,
+          "rust_peak_amplitude": 0.07036038598226564,
+          "scipy_peak_amplitude": 0.07036038598226564
+        }
+      ],
+      "validation": "passed"
+    },
+    "float32": {
+      "dtype": "float32",
+      "spectrum_dtype": "complex64",
+      "max_absolute_fft_error": 0.0013810679320049757,
+      "relative_l2_fft_error": 1.9644983188764043e-07,
+      "max_amplitude_scaled_complex_error": 7.804971947796654e-08,
+      "max_full_fft_error": 0.0009784679896167846,
+      "max_roundtrip_error": 4.76837158203125e-07,
+      "rust_rfft_seconds": 9.516843051256975e-05,
+      "scipy_rfft_seconds": 0.0002903045067648998,
+      "speedup": 3.050428647413248,
+      "peaks": [
+        {
+          "harmonic": 1,
+          "input_frequency_hz": 123.4,
+          "peak_bin_hz": 123.375,
+          "input_amplitude": 1.0,
+          "rust_peak_amplitude": 0.9687102504903407,
+          "scipy_peak_amplitude": 0.9687101401113688
+        },
+        {
+          "harmonic": 2,
+          "input_frequency_hz": 246.8,
+          "peak_bin_hz": 246.75,
+          "input_amplitude": 0.5,
+          "rust_peak_amplitude": 0.4398214321093923,
+          "scipy_peak_amplitude": 0.4398214872988782
+        },
+        {
+          "harmonic": 3,
+          "input_frequency_hz": 370.20000000000005,
+          "peak_bin_hz": 370.25,
+          "input_amplitude": 0.25,
+          "rust_peak_amplitude": 0.21993305399911925,
+          "scipy_peak_amplitude": 0.21993305399911925
+        },
+        {
+          "harmonic": 5,
+          "input_frequency_hz": 617.0,
+          "peak_bin_hz": 617.0,
+          "input_amplitude": 0.15,
+          "rust_peak_amplitude": 0.14998592714826098,
+          "scipy_peak_amplitude": 0.1499859133508895
+        },
+        {
+          "harmonic": 7,
+          "input_frequency_hz": 863.8000000000001,
+          "peak_bin_hz": 863.75,
+          "input_amplitude": 0.08,
+          "rust_peak_amplitude": 0.07036037882268592,
+          "scipy_peak_amplitude": 0.07036038572137165
+        }
+      ],
+      "validation": "passed"
+    }
+  }
+}
